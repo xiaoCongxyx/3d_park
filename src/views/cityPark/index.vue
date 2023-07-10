@@ -5,8 +5,12 @@
 </template>
 
 <script>
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
+import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
+import cityParkVert from "@/assets/shader/cityPark/vertex.glsl"
+import cityParkFrag from "@/assets/shader/cityPark/fragment.glsl"
+import RunRing from "../../utils/RunRing";
+
 
 let scene,camera,renderer,tweakPane,controls;
 export default {
@@ -22,6 +26,7 @@ export default {
     this.setControl()
     this.loadGLTF()
     this.render()
+    this.createRunRing()
 
     window.addEventListener('resize', () => {
       if (scene) {
@@ -33,6 +38,7 @@ export default {
   },
   beforeDestroy() {
     this.D(scene)
+    this.runRing.delete()
   },
   methods: {
     initThree() {
@@ -43,6 +49,9 @@ export default {
       camera = new this.THREE.PerspectiveCamera(60, w / h, 1, 10000)
       camera.position.set(-750, 600, 500)
       camera.lookAt(scene.position)
+
+      scene.background = new this.THREE.CubeTextureLoader().setPath('static/textures/').load(['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'],); // 作为背景贴图
+
 
       // 创建渲染器对象
       renderer = new this.THREE.WebGLRenderer({ alpha: true,canvas: this.$refs.baseCanvas });
@@ -61,6 +70,18 @@ export default {
 
 
     },
+    createRunRing() {
+      this.runRing = new RunRing({
+        img: "clice.png",
+        scene: scene,
+        speed: 1,
+        radius: 400,
+        position: [
+          [400, 20, 400],
+          [100, 20, 1200],
+        ],
+      })
+    },
     setControl() {
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
@@ -78,52 +99,27 @@ export default {
     loadGLTF() {
       this.uniforms = {
         height: {
-          value: 0
+          value: 1.0
         },
         uFlowColor: {
           value: new this.THREE.Color("#5588aa"),
         },
         uCityColor: {
-          value: new this.THREE.Color("#FFFFDC"),
+          value: new this.THREE.Color("#1B3045"),
         },
       }
       const shader = new this.THREE.ShaderMaterial({
         //从程序穿到着色器里面的值，这里先不传值
         uniforms: this.uniforms,
         //顶点着色器
-        vertexShader: `
-                varying vec3 vPosition;
-                void main()
-                {
-                  vPosition = position;
-                  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-                }`,
+        vertexShader: cityParkVert,
         //片段着色器
-        fragmentShader: `
-                  varying vec3 vPosition;
-                  uniform float height;
-                  // uniform float uStartTime;
-                  // uniform vec3 uSize;
-                  // uniform vec3 uFlow;
-                  uniform vec3 uFlowColor;
-                  uniform vec3 uCityColor;
-                  void main()
-                  {
-                    vec3 distColor = uCityColor;
-                    // 流动范围当前点z的高度加上流动线的高度
-                    float topY = vPosition.z + 5.0;
-                    if (height > vPosition.z && height < topY) {
-                     // 颜色渐变
-                      distColor = uFlowColor;
-                    }
-                    gl_FragColor = vec4(distColor,0.6);
-                  }`,
+        fragmentShader: cityParkFrag,
       });
 
       const loader = new GLTFLoader().setPath('/static/models/');
       loader.load("shanghai.gltf", (gltf) => {
         gltf.scene.traverse(child => {
-          console.log(child)
           if (child.isMesh) {
             const xyz = {
               x: child.position.x,

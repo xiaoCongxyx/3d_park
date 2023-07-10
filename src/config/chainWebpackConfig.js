@@ -13,6 +13,13 @@ function chainWebpackConfig(config) {
         }
     ])
 
+    config.module
+        .rule('glsl')
+        .test(/\.(glsl|vs|fs|vert|frag)$/)
+        .use('raw-loader')
+        .loader('raw-loader')
+        .end()
+
     // when there are many pages, it will cause too many meaningless requests
     config.plugins.delete('prefetch')
 
