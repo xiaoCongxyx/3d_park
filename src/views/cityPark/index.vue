@@ -10,6 +10,7 @@ import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
 import cityParkVert from "@/assets/shader/cityPark/vertex.glsl"
 import cityParkFrag from "@/assets/shader/cityPark/fragment.glsl"
 import RunRing from "../../utils/RunRing";
+import Wall from "../../utils/Wall";
 
 
 let scene,camera,renderer,tweakPane,controls;
@@ -27,6 +28,7 @@ export default {
     this.loadGLTF()
     this.render()
     this.createRunRing()
+    this.createWall()
 
     window.addEventListener('resize', () => {
       if (scene) {
@@ -70,6 +72,7 @@ export default {
 
 
     },
+    // 绘制扩散圆效果
     createRunRing() {
       this.runRing = new RunRing({
         img: "clice.png",
@@ -82,6 +85,26 @@ export default {
         ],
       })
     },
+    // 绘制扩散墙效果
+    createWall() {
+      const wallData = {
+        position: {
+          x: -150,
+          y: 15,
+          z: 100,
+        },
+        speed: 0.5,
+        color: "#efad35",
+        opacity: 0.6,
+        radius: 420,
+        height: 120,
+        renderOrder: 5,
+      };
+
+      let wallMesh = new Wall(wallData);
+      wallMesh.mesh.material.uniforms.time = this.uniforms.height;
+      scene.add(wallMesh.mesh);
+    },
     setControl() {
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
@@ -89,7 +112,7 @@ export default {
     },
     render() {
       this.uniforms['height'].value += 0.05;
-      if (this.uniforms['height'].value > 100) {
+      if (this.uniforms['height'].value > 150) {
         this.uniforms['height'].value = 0
       }
       renderer.render(scene, camera);
@@ -108,14 +131,6 @@ export default {
           value: new this.THREE.Color("#1B3045"),
         },
       }
-      const shader = new this.THREE.ShaderMaterial({
-        //从程序穿到着色器里面的值，这里先不传值
-        uniforms: this.uniforms,
-        //顶点着色器
-        vertexShader: cityParkVert,
-        //片段着色器
-        fragmentShader: cityParkFrag,
-      });
 
       const loader = new GLTFLoader().setPath('/static/models/');
       loader.load("shanghai.gltf", (gltf) => {
@@ -127,39 +142,11 @@ export default {
               z: child.position.z
             }
             if (["CITY_UNTRIANGULATED"].includes(child.name)) { // 建筑群
-              const edges = new this.THREE.EdgesGeometry(child.geometry,1)
-              const lineMaterial = new this.THREE.LineBasicMaterial({
-                color: "rgba(38,133,254)"
-              })
-
-              const lines = new this.THREE.LineSegments( edges, lineMaterial );
-
-              lines.position.set(
-                  xyz.x,
-                  xyz.y,
-                  xyz.z,
-              )
-              lines.rotateX(-Math.PI / 2)
-
-              scene.add(lines)
-
+              // 设置建筑线材质
+              this.setBuildLineMesh(child,xyz)
               // 设置面材质
-              const material = new this.THREE.MeshPhysicalMaterial({
-                color: 'rgb(50,170,255)',
-                roughness: 0.1,
-                shininess: 0.5,
-                transmission: 0.9,
-                transparent: true
-              })
+              this.setBuildFaceMesh(child,xyz)
 
-              const mesh = new this.THREE.Mesh(child.geometry, shader)
-              scene.add(mesh)
-              mesh.position.set(
-                  xyz.x,
-                  xyz.y,
-                  xyz.z
-              )
-              mesh.rotateX(-Math.PI / 2)
 
             } else if (['ROADS'].includes(child.name)) { // 道路
               const material = new this.THREE.MeshBasicMaterial({
@@ -193,7 +180,51 @@ export default {
         })
         // scene.add(gltf.scene);
       });
-    }
+    },
+    setBuildLineMesh(child,xyz) {
+      const edges = new this.THREE.EdgesGeometry(child.geometry,1)
+      const lineMaterial = new this.THREE.LineBasicMaterial({
+        color: "rgba(38,133,254)"
+      })
+
+      const lines = new this.THREE.LineSegments( edges, lineMaterial );
+
+      lines.position.set(
+          xyz.x,
+          xyz.y,
+          xyz.z,
+      )
+      lines.rotateX(-Math.PI / 2)
+
+      scene.add(lines)
+    },
+    setBuildFaceMesh(child,xyz) {
+      const shader = new this.THREE.ShaderMaterial({
+        //从程序穿到着色器里面的值，这里先不传值
+        uniforms: this.uniforms,
+        //顶点着色器
+        vertexShader: cityParkVert,
+        //片段着色器
+        fragmentShader: cityParkFrag,
+      });
+
+      const material = new this.THREE.MeshPhysicalMaterial({
+        color: 'rgb(50,170,255)',
+        roughness: 0.1,
+        shininess: 0.5,
+        transmission: 0.9,
+        transparent: true
+      })
+
+      const mesh = new this.THREE.Mesh(child.geometry, shader)
+      scene.add(mesh)
+      mesh.position.set(
+          xyz.x,
+          xyz.y,
+          xyz.z
+      )
+      mesh.rotateX(-Math.PI / 2)
+    },
   }
 }
 </script>
