@@ -11,6 +11,7 @@ import cityParkVert from "@/assets/shader/cityPark/vertex.glsl"
 import cityParkFrag from "@/assets/shader/cityPark/fragment.glsl"
 import RunRing from "../../utils/RunRing";
 import Wall from "../../utils/Wall";
+import FlyLine from "../../utils/flyLine";
 
 
 let scene,camera,renderer,tweakPane,controls;
@@ -29,6 +30,7 @@ export default {
     this.render()
     this.createRunRing()
     this.createWall()
+    this.createFlyLine()
 
     window.addEventListener('resize', () => {
       if (scene) {
@@ -104,6 +106,57 @@ export default {
       let wallMesh = new Wall(wallData);
       wallMesh.mesh.material.uniforms.time = this.uniforms.height;
       scene.add(wallMesh.mesh);
+    },
+    // 绘制飞线
+    createFlyLine() {
+      this.runline1 = new FlyLine({
+        img: "/static/textures/z1.png",
+        camera: camera,
+        height: 140,
+        v0: new this.THREE.Vector3(60, 18, -279),
+        v1: new this.THREE.Vector3(-17.5, 111.5, -23),
+        el: this.$refs.baseCanvas,
+        scene: scene,
+        speed: 1,
+        lineWidth: 40,
+        type: "run",
+      });
+      this.runline2 = new FlyLine({
+        img: "/static/textures/z_112.png",
+        camera: camera,
+        height: 140,
+        v0: new this.THREE.Vector3(-113, 44, 666),
+        v1: new this.THREE.Vector3(-17.5, 111.5, -23),
+        el: this.$refs.baseCanvas,
+        scene: scene,
+        speed: 1,
+        lineWidth: 40,
+        type: "run",
+      });
+      this.runline3 = new FlyLine({
+        img: "/static/textures/z_11.png",
+        camera: camera,
+        height: 140,
+        v0: new this.THREE.Vector3(-418, 113, -12),
+        v1: new this.THREE.Vector3(-17.5, 111.5, -23),
+        el: this.$refs.baseCanvas,
+        scene: scene,
+        speed: 1,
+        lineWidth: 40,
+        type: "run",
+      });
+      this.runline5 = new FlyLine({
+        img: "/static/textures/n.png",
+        camera: camera,
+        height: 140,
+        v0: new this.THREE.Vector3(614, 18, 130),
+        v1: new this.THREE.Vector3(-17.5, 111.5, -23),
+        el: this.$refs.baseCanvas,
+        scene: scene,
+        speed: 1,
+        lineWidth: 40,
+        type: "run",
+      });
     },
     setControl() {
       controls = new OrbitControls(camera, renderer.domElement);

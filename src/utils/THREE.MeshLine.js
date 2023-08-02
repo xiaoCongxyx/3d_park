@@ -510,6 +510,7 @@
   ].join('\r\n');
 
   function MeshLineMaterial(parameters) {
+    console.log(THREE.ShaderMaterial,'s-----------s')
     THREE.ShaderMaterial.call(this, {
       uniforms: {
         ...THREE.UniformsLib.fog,
