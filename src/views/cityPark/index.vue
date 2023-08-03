@@ -30,7 +30,7 @@ export default {
     this.render()
     this.createRunRing()
     this.createWall()
-    this.createFlyLine()
+    // this.createFlyLine()
 
     window.addEventListener('resize', () => {
       if (scene) {

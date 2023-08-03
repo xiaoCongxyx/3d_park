@@ -16,8 +16,8 @@ export default {
           title: '3D智慧城市',
           path: '/cityPark',
         },{
-          title: '待设计1...',
-          path: '/',
+          title: '3D地图',
+          path: '/china3DMap',
         },{
           title: '待设计2...',
           path: '/',
