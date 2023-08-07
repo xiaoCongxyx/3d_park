@@ -7,6 +7,7 @@
 <script>
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 import * as D3 from 'd3'
+
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
 let scene, camera, renderer, tweakPane, controls;
@@ -113,7 +114,11 @@ export default {
           coordinates.forEach((coordinate) => {
             // coordinate 多边形数据
             coordinate.forEach((rows) => {
+              // const mesh = this.drawExtrudeMesh(rows, color)
+              // province.add(mesh)
               const mesh = this.drawExtrudeMesh(rows, color)
+              const line = this.lineDraw(rows, color)
+              province.add(line)
               province.add(mesh)
             })
           })
@@ -122,6 +127,8 @@ export default {
           // 多边形
           coordinates.forEach((coordinate) => {
             const mesh = this.drawExtrudeMesh(coordinate, color)
+            const line = this.lineDraw(coordinate, color)
+            province.add(line)
             province.add(mesh)
           })
         }
@@ -137,10 +144,7 @@ export default {
       const box = new this.THREE.BoxHelper(map, 0xffff00);
       scene.add(box);
 
-      // map.scale.set(1,1,0.5)
-      // map.rotateX(Math.PI / -2)
-      // map.position.x = -100
-      // map.position.z = -100
+
       scene.add(map)
 
     },
