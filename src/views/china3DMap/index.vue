@@ -14,9 +14,17 @@ import {FXAAShader} from 'three/examples/jsm/shaders/FXAAShader.js';
 import * as D3 from 'd3'
 let _ = require('lodash');
 
+
+import dotMarkerVert from "@/assets/shader/mapDotMarker/vertex.glsl"
+import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
+let dotMarkerUniforms = {
+  uDotColor: {value: '#fff'},
+  uTime: {value: 0},
+}
+
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
-let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED;
+let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock;
 
 
 export default {
@@ -31,11 +39,12 @@ export default {
   methods: {
     initThree() {
       scene = new this.THREE.Scene();
+      clock = new this.THREE.Clock()
       let w = this.$refs.baseCanvas.clientWidth
       let h = this.$refs.baseCanvas.clientHeight
 
       camera = new this.THREE.PerspectiveCamera(75, w / h, 1, 1000)
-      camera.position.set(0, 150, 70)
+      camera.position.set(0, 115, 40)
       camera.lookAt(0, 0, 0)
 
       scene.background = new this.THREE.CubeTextureLoader().setPath('static/textures/').load(['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'],); // 作为背景贴图
@@ -104,16 +113,7 @@ export default {
 
       // 计算物体和射线的焦点
       const intersects = raycaster.intersectObjects(scene.children);
-      // if (intersects[i].object.material.length > 0) {
-      //
-      // }
-      // for ( let i = 0; i < intersects.length; i ++ ) {
-      //
-      //   if (intersects[i].object.material.length > 0) {
-      //     intersects[i].object.material[0].color.set('blue')
-      //   }
-      //
-      // }
+
       if (intersects.length > 0) {
         // console.log(intersects)
         if (intersects[0].object.material.length > 0) {
@@ -138,11 +138,15 @@ export default {
       controls.update();
     },
     render() {
+      let elapsedTime = clock.getElapsedTime();
+
+      dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
+
       renderer.render(scene, camera);
       controls.update();
       requestAnimationFrame(this.render);
 
-
+      this.TWEEN.update()
 
       // 2. 用 bloomComposer 产生辉光
       // bloomComposer.render();
@@ -405,6 +409,82 @@ export default {
       ellipse.layers.enable(1);
       return ellipse;
     },
+    // 相机tween动画
+    CameraAnimation () {
+      let tweenA = this.cameraCon(
+          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
+          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
+          3000,
+      );
+      let tweenB = this.cameraCon(
+          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
+          { x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017 },
+          8000,
+      );
+      let tweenC = this.cameraCon(
+          { x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017 },
+          { x: 32.19469382023058, y: 22.87664020700182, z: 27.742681212371384 },
+          10000,
+      );
+
+      tweenA.chain(tweenB);
+      tweenB.chain(tweenC);
+      tweenA.start();
+    },
+    cameraCon(
+        p1 = { x: 0, y: 0, z: 0 },
+        p2 = { x: 30, y: 30, z: 30 },
+        time = 6000,
+    ) {
+      let tween1 = new this.TWEEN.Tween(p1)
+          .to(p2, time || 200000)
+          .easing(this.TWEEN.Easing.Quadratic.InOut);
+      let update =  () => {
+        camera.position.set(p1.x, p1.y, p1.z);
+      };
+      tween1.onUpdate(update);
+      return tween1;
+    },
+    // 光点柱
+    dotBarLight (posStart, colors) {
+      const [x0, y0, z0] = [...posStart, 5.2];
+      this.AniRingGeometry([x0, y0], colors);
+      let geometry = new this.THREE.ConeGeometry(0.25, 3.5, 5);
+      let material1 = new this.THREE.MeshBasicMaterial({
+        color: colors,
+        transparent: true,
+        opacity: 0.4,
+      });
+      let cylinder = new this.THREE.Mesh(geometry, material1);
+      cylinder.position.set(x0, z0, y0);
+      cylinder.layers.enable(1);
+      scene.add(cylinder);
+    },
+    // 波动光圈
+    AniRingGeometry (post, colors) {
+      dotMarkerUniforms.uDotColor.value = new this.THREE.Color(colors);
+
+      const [x0, y0, z0] = [...post, 4.001];
+      const geometry2 = new this.THREE.RingGeometry(0, 0.20, 50);
+      // transparent 设置 true 开启透明
+      const material2 = new this.THREE.MeshBasicMaterial({
+        color: colors,
+        side: this.THREE.FrontSide,
+        transparent: true,
+      });
+      const dotShaderMaterial = new this.THREE.ShaderMaterial({
+        uniforms: dotMarkerUniforms,
+        vertexShader: dotMarkerVert,
+        fragmentShader: dotMarkerFrag,
+        transparent:true
+      })
+      const circleY = new this.THREE.Mesh(geometry2, dotShaderMaterial);
+      // 绘制地图时 y轴取反 这里同步
+      circleY.position.set(x0, z0, y0);
+      circleY.scale.set(2, 2, 1);
+      circleY.rotation.x = -0.5 * Math.PI;
+      scene.add(circleY);
+    },
 
 
     /***
@@ -446,6 +526,20 @@ export default {
       //
       // })
       features.forEach((feature) => {
+        if (
+            feature.properties.name === '广东省' ||
+            feature.properties.name === '北京市'||
+            feature.properties.name === '上海市'||
+            feature.properties.name === '江苏省'||
+            feature.properties.name === '江西省'||
+            feature.properties.name === '陕西省'
+        ) {
+          this.dotBarLight(
+              projection(feature.properties.center),
+              feature.properties.name === '北京市' ? '#008c8c' : 'yellow',
+          );
+        }
+
         // 单个省份
         const province = new this.THREE.Object3D()
         // 地址
@@ -460,7 +554,7 @@ export default {
             coordinate.forEach((rows) => {
               const mesh = this.drawExtrudeMesh(rows, color)
               const line = this.lineDraw(rows, '#b45309')
-              line.position.set(0, 0, 2.1);
+              line.position.set(0, 0, 1.100001);
               province.add(line)
               province.add(mesh)
             })
@@ -471,7 +565,7 @@ export default {
           coordinates.forEach((coordinate) => {
             const mesh = this.drawExtrudeMesh(coordinate, color)
             const line = this.lineDraw(coordinate, '#b45309')
-            line.position.set(0, 0, 2.1);
+            line.position.set(0, 0, 1.100001);
             province.add(line)
             province.add(mesh)
           })
@@ -521,9 +615,13 @@ export default {
   mounted() {
     this.initThree()
     this.setControl()
+    // 地图加载
     this.loadChinaMap()
+    // 设置物体效果
     // this.setTerritory()
     this.render()
+    // 相机运动动画
+    // this.CameraAnimation()
     window.addEventListener('resize', () => {
       if (scene) {
         this.R(this.$refs.chinaMap.clientWidth, this.$refs.chinaMap.clientHeight, renderer, camera)
@@ -532,6 +630,7 @@ export default {
   }
   ,
   beforeDestroy() {
+    this.D(scene)
   }
 }
 </script>
