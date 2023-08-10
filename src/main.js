@@ -10,6 +10,8 @@ Vue.config.productionTip = false
 
 import './assets/css/resetTheStyle.css'
 
+
+
 import destroyThree from './utils/destroyThree'
 import resizeScene from './utils/resizeScene'
 

@@ -12,6 +12,7 @@ import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import {FXAAShader} from 'three/examples/jsm/shaders/FXAAShader.js';
 import * as D3 from 'd3'
+let _ = require('lodash');
 
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
@@ -93,18 +94,10 @@ export default {
 
       this.pointer.x = (event.clientX / this.$refs.chinaMap.clientWidth) * 2 - 1;
       this.pointer.y = -((event.clientY - 80) / this.$refs.chinaMap.clientHeight) * 2 + 1;
-      console.log(this.pointer.x, this.pointer.y)
+      // console.log(this.pointer.x, this.pointer.y)
+      this.checkMeshClick()
     },
-    setControl() {
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.update();
-    },
-    render() {
-      renderer.render(scene, camera);
-      controls.update();
-      requestAnimationFrame(this.render);
-
+    checkMeshClick() {
       // 检测物体相交
       // 通过摄像机和鼠标位置更新射线
       raycaster.setFromCamera(this.pointer, camera);
@@ -123,19 +116,33 @@ export default {
       // }
       if (intersects.length > 0) {
         // console.log(intersects)
-        if (intersects[0].object.isMesh) {
-          if (INTERSECTED !== intersects[0].object) {
-            if (INTERSECTED) INTERSECTED.material[0].color.clone(INTERSECTED.currentCorlor);
-
-            INTERSECTED = intersects[0].object;
-            INTERSECTED.currentCorlor = INTERSECTED.material[0].color;
-            INTERSECTED.material[0].color.set('blue');
+        if (intersects[0].object.material.length > 0) {
+          // 如果已经选中了一个物体，将其颜色恢复原样
+          // console.log(INTERSECTED,intersects[0].object,INTERSECTED === intersects[0].object)
+          if (INTERSECTED||INTERSECTED === intersects[0].object) {
+            INTERSECTED.material[0].color.set('#1E293B');
           }
-        } else {
-          if (INTERSECTED) INTERSECTED.material[0].color.clone(INTERSECTED.currentCorlor);
-          INTERSECTED = null;
+          if (INTERSECTED === intersects[0].object) {
+            INTERSECTED.material[0].color.set('#1E293B');
+            return false;
+          }
+          // 将当前选中的物体保存到变量中，并修改其颜色
+          INTERSECTED = intersects[0].object;
+          INTERSECTED.material[0].color.set('blue');
         }
       }
+    },
+    setControl() {
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.update();
+    },
+    render() {
+      renderer.render(scene, camera);
+      controls.update();
+      requestAnimationFrame(this.render);
+
+
 
       // 2. 用 bloomComposer 产生辉光
       // bloomComposer.render();
