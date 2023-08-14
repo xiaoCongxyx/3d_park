@@ -20,6 +20,7 @@ import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
 let dotMarkerUniforms = {
   uDotColor: {value: '#fff'},
   uTime: {value: 0},
+  uFrequency: {value: 0}
 }
 
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
@@ -448,7 +449,8 @@ export default {
     // 光点柱
     dotBarLight (posStart, colors) {
       const [x0, y0, z0] = [...posStart, 5.2];
-      this.AniRingGeometry([x0, y0], colors);
+      let frequency = ((Math.random() * 35) + 15).toFixed(0)
+      this.AniRingGeometry([x0, y0], colors,frequency);
       let geometry = new this.THREE.ConeGeometry(0.25, 3.5, 5);
       let material1 = new this.THREE.MeshBasicMaterial({
         color: colors,
@@ -461,11 +463,12 @@ export default {
       scene.add(cylinder);
     },
     // 波动光圈
-    AniRingGeometry (post, colors) {
+    AniRingGeometry (post, colors,frequency) {
       dotMarkerUniforms.uDotColor.value = new this.THREE.Color(colors);
+      dotMarkerUniforms.uFrequency.value = frequency;
 
       const [x0, y0, z0] = [...post, 4.001];
-      const geometry2 = new this.THREE.RingGeometry(0, 0.20, 50);
+      const geometry2 = new this.THREE.RingGeometry(0, 0.80, 50);
       // transparent 设置 true 开启透明
       const material2 = new this.THREE.MeshBasicMaterial({
         color: colors,
@@ -484,6 +487,8 @@ export default {
       circleY.scale.set(2, 2, 1);
       circleY.rotation.x = -0.5 * Math.PI;
       scene.add(circleY);
+      console.log(frequency)
+      console.log(dotShaderMaterial)
     },
 
 
