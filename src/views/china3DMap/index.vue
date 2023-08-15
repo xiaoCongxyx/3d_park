@@ -12,16 +12,19 @@ import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import {FXAAShader} from 'three/examples/jsm/shaders/FXAAShader.js';
 import * as D3 from 'd3'
+
 let _ = require('lodash');
 
 
 import dotMarkerVert from "@/assets/shader/mapDotMarker/vertex.glsl"
 import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
-let dotMarkerUniforms = {
-  uDotColor: {value: '#fff'},
-  uTime: {value: 0},
-  uFrequency: {value: 0}
-}
+// let dotMarkerUniforms = {
+//   uDotColor: {value: '#fff'},
+//   uTime: {value: 0},
+//   uFrequency: {value: 0}
+// }
+let dotMarkerUniforms = []
+let shaderI = 0
 
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
@@ -120,7 +123,7 @@ export default {
         if (intersects[0].object.material.length > 0) {
           // 如果已经选中了一个物体，将其颜色恢复原样
           // console.log(INTERSECTED,intersects[0].object,INTERSECTED === intersects[0].object)
-          if (INTERSECTED||INTERSECTED === intersects[0].object) {
+          if (INTERSECTED || INTERSECTED === intersects[0].object) {
             INTERSECTED.material[0].color.set('#1E293B');
           }
           if (INTERSECTED === intersects[0].object) {
@@ -141,7 +144,10 @@ export default {
     render() {
       let elapsedTime = clock.getElapsedTime();
 
-      dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
+      // dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
+      dotMarkerUniforms.forEach(v => {
+        v.uTime.value = elapsedTime * 0.1;
+      })
 
       renderer.render(scene, camera);
       controls.update();
@@ -166,6 +172,11 @@ export default {
 
             const map = new this.THREE.Object3D()
             this.operationData(jsonData, map)
+
+            // 绘制高度曲线
+            // let linePoint = [[115.857972, 28.682976], [110.001598, 27.569813]] // 南昌 --- 怀化
+            let linePoint = [[115.857972, 28.682976], [108.939645,34.343207]] // 南昌 --- 西安
+            this.drawHeightLine(linePoint, 10) // height没传就是绘制直线 离地高度为0
 
             // this.setMapDom(jsonData)
             // this.setMapBorder(jsonData)
@@ -411,20 +422,20 @@ export default {
       return ellipse;
     },
     // 相机tween动画
-    CameraAnimation () {
+    CameraAnimation() {
       let tweenA = this.cameraCon(
-          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
-          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
+          {x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705},
+          {x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705},
           3000,
       );
       let tweenB = this.cameraCon(
-          { x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705 },
-          { x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017 },
+          {x: 89.67626699596627, y: 107.58058095557215, z: 51.374711690741705},
+          {x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017},
           8000,
       );
       let tweenC = this.cameraCon(
-          { x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017 },
-          { x: 32.19469382023058, y: 22.87664020700182, z: 27.742681212371384 },
+          {x: 31.366485208227502, y: 42.7325471436067, z: 26.484221462746017},
+          {x: 32.19469382023058, y: 22.87664020700182, z: 27.742681212371384},
           10000,
       );
 
@@ -433,24 +444,31 @@ export default {
       tweenA.start();
     },
     cameraCon(
-        p1 = { x: 0, y: 0, z: 0 },
-        p2 = { x: 30, y: 30, z: 30 },
+        p1 = {x: 0, y: 0, z: 0},
+        p2 = {x: 30, y: 30, z: 30},
         time = 6000,
     ) {
       let tween1 = new this.TWEEN.Tween(p1)
           .to(p2, time || 200000)
           .easing(this.TWEEN.Easing.Quadratic.InOut);
-      let update =  () => {
+      let update = () => {
         camera.position.set(p1.x, p1.y, p1.z);
       };
       tween1.onUpdate(update);
       return tween1;
     },
     // 光点柱
-    dotBarLight (posStart, colors) {
-      const [x0, y0, z0] = [...posStart, 5.2];
+    dotBarLight(posStart, colors) {
       let frequency = ((Math.random() * 35) + 15).toFixed(0)
-      this.AniRingGeometry([x0, y0], colors,frequency);
+
+      dotMarkerUniforms.push({
+        uColor: {value: colors},
+        uTime: {value: 0},
+        uFrequency: {value: frequency}
+      })
+
+      const [x0, y0, z0] = [...posStart, 5.2];
+      this.AniRingGeometry([x0, y0], colors, frequency);
       let geometry = new this.THREE.ConeGeometry(0.25, 3.5, 5);
       let material1 = new this.THREE.MeshBasicMaterial({
         color: colors,
@@ -459,13 +477,12 @@ export default {
       });
       let cylinder = new this.THREE.Mesh(geometry, material1);
       cylinder.position.set(x0, z0, y0);
+      console.log(x0, z0, y0)
       cylinder.layers.enable(1);
       scene.add(cylinder);
     },
     // 波动光圈
-    AniRingGeometry (post, colors,frequency) {
-      dotMarkerUniforms.uDotColor.value = new this.THREE.Color(colors);
-      dotMarkerUniforms.uFrequency.value = frequency;
+    AniRingGeometry(post, colors, frequency) {
 
       const [x0, y0, z0] = [...post, 4.001];
       const geometry2 = new this.THREE.RingGeometry(0, 0.80, 50);
@@ -476,10 +493,10 @@ export default {
         transparent: true,
       });
       const dotShaderMaterial = new this.THREE.ShaderMaterial({
-        uniforms: dotMarkerUniforms,
+        uniforms: dotMarkerUniforms[shaderI],
         vertexShader: dotMarkerVert,
         fragmentShader: dotMarkerFrag,
-        transparent:true
+        transparent: true
       })
       const circleY = new this.THREE.Mesh(geometry2, dotShaderMaterial);
       // 绘制地图时 y轴取反 这里同步
@@ -487,8 +504,7 @@ export default {
       circleY.scale.set(2, 2, 1);
       circleY.rotation.x = -0.5 * Math.PI;
       scene.add(circleY);
-      console.log(frequency)
-      console.log(dotShaderMaterial)
+      console.log(frequency, shaderI)
     },
 
 
@@ -530,19 +546,19 @@ export default {
       //   console.log(cod,'cod---')
       //
       // })
-      features.forEach((feature) => {
+      features.map((feature) => {
         if (
             feature.properties.name === '广东省' ||
-            feature.properties.name === '北京市'||
-            feature.properties.name === '上海市'||
-            feature.properties.name === '江苏省'||
-            feature.properties.name === '江西省'||
+            feature.properties.name === '北京市' ||
+            feature.properties.name === '上海市' ||
+            feature.properties.name === '江苏省' ||
             feature.properties.name === '陕西省'
         ) {
           this.dotBarLight(
               projection(feature.properties.center),
               feature.properties.name === '北京市' ? '#008c8c' : 'yellow',
           );
+          shaderI++;
         }
 
         // 单个省份
@@ -611,6 +627,36 @@ export default {
       lineGeometry.setFromPoints(pointsArray)
       const lineMaterial = new this.THREE.LineBasicMaterial({color: color, linewidth: 3,})
       return new this.THREE.Line(lineGeometry, lineMaterial)
+    },
+    // 绘制离地高度曲线
+    drawHeightLine(startAndEndP, height = 4.001) {
+      let newStartAndEndP = []
+      startAndEndP.forEach(v => {
+        newStartAndEndP.push(projection(v))
+      })
+      let startP = new this.THREE.Vector3(newStartAndEndP[0][0], 4.001, newStartAndEndP[0][1])
+      let endP = new this.THREE.Vector3(newStartAndEndP[1][0], 4.001, newStartAndEndP[1][1])
+      let controlP = new this.THREE.Vector3((startP.x + endP.x) / 2, height, (startP.z + endP.z) / 2)
+
+      console.log(startP, endP, controlP, height)
+
+      const curve = new this.THREE.QuadraticBezierCurve3(
+          startP,
+          controlP,
+          endP
+      );
+
+      const points = curve.getPoints(50);
+      const geometry = new this.THREE.BufferGeometry().setFromPoints(points);
+
+      const material = new this.THREE.LineBasicMaterial({
+        color: 0xff3850,
+        lineWidth: 1,
+      });
+
+      // Create the final object to add to the scene
+      const curveObject = new this.THREE.Line(geometry, material);
+      scene.add(curveObject)
     }
   }
   ,
