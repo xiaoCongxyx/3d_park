@@ -15,6 +15,7 @@ import * as D3 from 'd3'
 
 let _ = require('lodash');
 
+import ObjLoopMoveAnimate from "../../utils/customerAnimateUtil/objLoopMoveAnimate";
 
 import dotMarkerVert from "@/assets/shader/mapDotMarker/vertex.glsl"
 import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
@@ -28,14 +29,14 @@ let shaderI = 0
 
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
-let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock;
+let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock, objLoopMoveAnimate;
 
 
 export default {
   name: "index",
   data() {
     return {
-      pointer: null
+      pointer: null,
     }
   },
   watch: {},
@@ -144,6 +145,10 @@ export default {
     render() {
       let elapsedTime = clock.getElapsedTime();
 
+      if (objLoopMoveAnimate) {
+        objLoopMoveAnimate.animate()
+      }
+
       // dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
       dotMarkerUniforms.forEach(v => {
         v.uTime.value = elapsedTime * 0.1;
@@ -172,6 +177,7 @@ export default {
 
             const map = new this.THREE.Object3D()
             this.operationData(jsonData, map)
+            console.log(jsonData)
 
             // 绘制高度曲线
             // let linePoint = [[115.857972, 28.682976], [110.001598, 27.569813]] // 南昌 --- 怀化
@@ -651,12 +657,33 @@ export default {
 
       const material = new this.THREE.LineBasicMaterial({
         color: 0xff3850,
-        lineWidth: 1,
+        linewidth: 1,
       });
 
       // Create the final object to add to the scene
       const curveObject = new this.THREE.Line(geometry, material);
+
       scene.add(curveObject)
+
+      let obj = new this.THREE.Mesh(
+          new this.THREE.BoxGeometry(1,1,1,8,8,8),
+          new this.THREE.MeshBasicMaterial({color:'red'})
+      )
+      scene.add(obj)
+
+      objLoopMoveAnimate = new ObjLoopMoveAnimate({
+        scene,
+        useTime: 0.1,
+        curveObj: curve,
+        points,
+        modelTurnAround: {
+          modelTurnAngle: 0
+        },
+        modelTurnAroundStart:{
+          modelTurnAngleStart: 0
+        },
+        moveModel: obj
+      })
     }
   }
   ,
