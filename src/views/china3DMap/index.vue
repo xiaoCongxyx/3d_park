@@ -11,14 +11,17 @@ import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import {FXAAShader} from 'three/examples/jsm/shaders/FXAAShader.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import * as D3 from 'd3'
 
 let _ = require('lodash');
 
 import ObjLoopMoveAnimate from "../../utils/customerAnimateUtil/objLoopMoveAnimate";
+import {Create2DTextLabel} from "../../utils/threeUtils/create2DTextLabel";
 
 import dotMarkerVert from "@/assets/shader/mapDotMarker/vertex.glsl"
 import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
+
 // let dotMarkerUniforms = {
 //   uDotColor: {value: '#fff'},
 //   uTime: {value: 0},
@@ -27,9 +30,15 @@ import dotMarkerFrag from "@/assets/shader/mapDotMarker/fragment.glsl"
 let dotMarkerUniforms = []
 let shaderI = 0
 
+// 线shader材质
+import lineVert from "@/assets/shader/flowingGlowLine/vertex.glsl"
+import lineFrag from "@/assets/shader/flowingGlowLine/fragment.glsl"
+
+
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
-let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock, objLoopMoveAnimate;
+let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock,
+    objLoopMoveAnimate, labelRenderer;
 
 
 export default {
@@ -37,6 +46,7 @@ export default {
   data() {
     return {
       pointer: null,
+      lineShaderUniforms: null
     }
   },
   watch: {},
@@ -60,6 +70,20 @@ export default {
       renderer.setSize(w, h); // 设置渲染区域尺寸
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setClearColor('#000')
+
+      this.lineShaderUniforms = {
+        uColor: {value: new this.THREE.Color('skyblue')}, // 设置流光颜色
+        uCoefficient: {value: 1.0}, // 设置流光强度
+        uTime: {value: 0.0} // 时间参数，控制流光的流动
+      }
+
+      labelRenderer = new CSS2DRenderer();
+      labelRenderer.setSize(w, h);
+      labelRenderer.domElement.style.position = 'absolute';
+      labelRenderer.domElement.style.top = '80px';
+      labelRenderer.domElement.style.pointerEvents = 'none';
+      labelRenderer.domElement.classList.add('city-marker-wraps');
+      this.$refs.chinaMap.appendChild(labelRenderer.domElement);
 
       let axes = new this.THREE.AxesHelper(700)
       // scene.add(axes)
@@ -145,15 +169,20 @@ export default {
     render() {
       let elapsedTime = clock.getElapsedTime();
 
-      if (objLoopMoveAnimate) {
-        objLoopMoveAnimate.animate()
-      }
+      // 物体循环自动移动
+      // if (objLoopMoveAnimate) {
+      //   objLoopMoveAnimate.animate()
+      // }
 
       // dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
       dotMarkerUniforms.forEach(v => {
         v.uTime.value = elapsedTime * 0.1;
       })
 
+      // 线的uniforms
+      this.lineShaderUniforms.uTime.value = elapsedTime * 0.001;
+
+      labelRenderer.render(scene, camera);
       renderer.render(scene, camera);
       controls.update();
       requestAnimationFrame(this.render);
@@ -181,7 +210,15 @@ export default {
 
             // 绘制高度曲线
             // let linePoint = [[115.857972, 28.682976], [110.001598, 27.569813]] // 南昌 --- 怀化
-            let linePoint = [[115.857972, 28.682976], [108.939645,34.343207]] // 南昌 --- 西安
+            let linePoint = [
+              {
+                city: '南昌',
+                pos: [115.857972, 28.682976]
+              }, {
+                city: '西安',
+                pos: [108.939645, 34.343207]
+              },
+            ] // 南昌 --- 西安
             this.drawHeightLine(linePoint, 10) // height没传就是绘制直线 离地高度为0
 
             // this.setMapDom(jsonData)
@@ -294,7 +331,7 @@ export default {
       scene.add(province);
     },
     // 几何体集合
-    setTerritory() {
+    setTerritory()  {
       // //-------------------- 圆柱1
 
       const geometry1a = new this.THREE.CylinderGeometry(29, 29, 1, 100, 1);
@@ -483,7 +520,6 @@ export default {
       });
       let cylinder = new this.THREE.Mesh(geometry, material1);
       cylinder.position.set(x0, z0, y0);
-      console.log(x0, z0, y0)
       cylinder.layers.enable(1);
       scene.add(cylinder);
     },
@@ -638,7 +674,13 @@ export default {
     drawHeightLine(startAndEndP, height = 4.001) {
       let newStartAndEndP = []
       startAndEndP.forEach(v => {
-        newStartAndEndP.push(projection(v))
+        newStartAndEndP.push(projection(v.pos))
+        new Create2DTextLabel({
+          scene,
+          position: projection(v.pos),
+          textContent: v.city,
+          textLabelClassName: 'city-marker',
+        })
       })
       let startP = new this.THREE.Vector3(newStartAndEndP[0][0], 4.001, newStartAndEndP[0][1])
       let endP = new this.THREE.Vector3(newStartAndEndP[1][0], 4.001, newStartAndEndP[1][1])
@@ -660,16 +702,27 @@ export default {
         linewidth: 1,
       });
 
+      let lineShaderMaterial = new this.THREE.ShaderMaterial({
+        uniforms: this.lineShaderUniforms,
+        side: 2, // 仅渲染正面
+        blending: this.THREE.AdditiveBlending, // 使用加法混合
+        transparent: true, // 开启透明度
+        depthTest: true,
+        vertexShader: lineVert,
+        fragmentShader: lineFrag
+      })
+
       // Create the final object to add to the scene
-      const curveObject = new this.THREE.Line(geometry, material);
+      const curveObject = new this.THREE.Line(geometry, lineShaderMaterial);
 
       scene.add(curveObject)
 
+      // 测试用物体
       let obj = new this.THREE.Mesh(
-          new this.THREE.BoxGeometry(1,1,1,8,8,8),
-          new this.THREE.MeshBasicMaterial({color:'red'})
+          new this.THREE.BoxGeometry(1, 1, 1, 8, 8, 8),
+          new this.THREE.MeshBasicMaterial({color: 'red'})
       )
-      scene.add(obj)
+      // scene.add(obj)
 
       objLoopMoveAnimate = new ObjLoopMoveAnimate({
         scene,
@@ -679,7 +732,7 @@ export default {
         modelTurnAround: {
           modelTurnAngle: 0
         },
-        modelTurnAroundStart:{
+        modelTurnAroundStart: {
           modelTurnAngleStart: 0
         },
         moveModel: obj
@@ -702,7 +755,16 @@ export default {
     // this.CameraAnimation()
     window.addEventListener('resize', () => {
       if (scene) {
-        this.R(this.$refs.chinaMap.clientWidth, this.$refs.chinaMap.clientHeight, renderer, camera)
+        // this.R(this.$refs.chinaMap.clientWidth, this.$refs.chinaMap.clientHeight, renderer, camera)
+        let w = this.$refs.chinaMap.clientWidth
+        let h = this.$refs.chinaMap.clientHeight
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+
+        labelRenderer.setSize(w, h);
+        renderer.setSize(w, h);
+        // 像素比 保持2或1
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       }
     });
   }
@@ -720,9 +782,22 @@ export default {
   height: calc(100% - 80px);
   overflow: hidden;
 
+
   canvas {
+    //pointer-events: none;
     width: 100%;
     height: 100%;
   }
+}
+
+</style>
+<style lang="scss">
+.city-marker-wraps {
+
+  .city-marker {
+    color: #fff;
+    font-size: 12px;
+  }
+
 }
 </style>
