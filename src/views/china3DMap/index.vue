@@ -1,6 +1,8 @@
 <template>
   <div id="chinaMap" ref="chinaMap">
     <canvas ref="baseCanvas"></canvas>
+
+    <OperatorPanel />
   </div>
 </template>
 
@@ -40,6 +42,7 @@ const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0
 let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock,
     objLoopMoveAnimate, labelRenderer;
 
+import OperatorPanel from './components/OperatorPanel'
 
 export default {
   name: "index",
@@ -51,6 +54,9 @@ export default {
   },
   watch: {},
   computed: {},
+  components: {
+    OperatorPanel
+  },
   methods: {
     initThree() {
       scene = new this.THREE.Scene();
@@ -80,7 +86,7 @@ export default {
       labelRenderer = new CSS2DRenderer();
       labelRenderer.setSize(w, h);
       labelRenderer.domElement.style.position = 'absolute';
-      labelRenderer.domElement.style.top = '80px';
+      // labelRenderer.domElement.style.top = '80px';
       labelRenderer.domElement.style.pointerEvents = 'none';
       labelRenderer.domElement.classList.add('city-marker-wraps');
       this.$refs.chinaMap.appendChild(labelRenderer.domElement);
@@ -170,9 +176,9 @@ export default {
       let elapsedTime = clock.getElapsedTime();
 
       // 物体循环自动移动
-      // if (objLoopMoveAnimate) {
-      //   objLoopMoveAnimate.animate()
-      // }
+      if (objLoopMoveAnimate) {
+        objLoopMoveAnimate.animate()
+      }
 
       // dotMarkerUniforms.uTime.value = elapsedTime * 0.1;
       dotMarkerUniforms.forEach(v => {
@@ -713,7 +719,7 @@ export default {
       })
 
       // Create the final object to add to the scene
-      const curveObject = new this.THREE.Line(geometry, lineShaderMaterial);
+      const curveObject = new this.THREE.Line(geometry, material);
 
       scene.add(curveObject)
 
@@ -722,7 +728,7 @@ export default {
           new this.THREE.BoxGeometry(1, 1, 1, 8, 8, 8),
           new this.THREE.MeshBasicMaterial({color: 'red'})
       )
-      // scene.add(obj)
+      scene.add(obj)
 
       objLoopMoveAnimate = new ObjLoopMoveAnimate({
         scene,
@@ -779,6 +785,7 @@ export default {
 #chinaMap {
   display: flex;
   width: 100%;
+  position: relative;
   height: calc(100% - 80px);
   overflow: hidden;
 

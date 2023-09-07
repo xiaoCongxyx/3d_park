@@ -10,7 +10,8 @@ Vue.config.productionTip = false
 
 import './assets/css/resetTheStyle.css'
 
-
+// Vuetify
+import vuetify from './plugins/vuetify' // path to vuetify export
 
 import destroyThree from './utils/destroyThree'
 import resizeScene from './utils/resizeScene'
@@ -23,7 +24,8 @@ Vue.prototype.D = destroyThree
 Vue.prototype.R = resizeScene
 
 new Vue({
-  router,
-  store,
-  render: h => h(App)
+    router,
+    store,
+    vuetify,
+    render: h => h(App)
 }).$mount('#app')
