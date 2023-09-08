@@ -2,7 +2,7 @@
   <div id="chinaMap" ref="chinaMap">
     <canvas ref="baseCanvas"></canvas>
 
-    <OperatorPanel />
+    <OperatorPanel @start-finding-way="startFindingWayHandel"/>
   </div>
 </template>
 
@@ -337,7 +337,7 @@ export default {
       scene.add(province);
     },
     // 几何体集合
-    setTerritory()  {
+    setTerritory() {
       // //-------------------- 圆柱1
 
       const geometry1a = new this.THREE.CylinderGeometry(29, 29, 1, 100, 1);
@@ -743,6 +743,11 @@ export default {
         },
         moveModel: obj
       })
+    },
+
+    // 开始寻路
+    startFindingWayHandel(theWay) {
+      console.log(theWay, '开始寻路...')
     }
   }
   ,

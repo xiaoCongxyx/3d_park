@@ -1,7 +1,7 @@
 <template>
   <div class="operator-panel">
-    <v-expansion-panels focusable dark>
-      <v-expansion-panel @click="panelChange">
+    <v-expansion-panels focusable dark v-model="plane">
+      <v-expansion-panel @click.stop="() => {}">
         <v-expansion-panel-header>
           <template v-slot:default="{ open }">
             <v-row no-gutters>
@@ -46,7 +46,7 @@
                 class="ma-2"
                 outlined
                 color="#0ff0ff"
-                @click="startFindingWay"
+                @click="startFindingWay({start:trip.startCity,end:trip.endCity})"
             >
               开始寻路
             </v-btn>
@@ -62,12 +62,13 @@
         </v-expansion-panel-content>
       </v-expansion-panel>
 
-      <v-expansion-panel>
+
+      <v-expansion-panel @click.stop="() => {}">
         <v-expansion-panel-header>
           <template v-slot:default="{ open }">
             <v-row no-gutters>
               <v-col cols="4">
-                Trip name
+                绘制飞线
               </v-col>
               <v-col
                   cols="8"
@@ -78,13 +79,13 @@
                     v-if="open"
                     key="0"
                 >
-                  Enter a name for the trip
+                  请建立连接
                 </span>
                   <span
                       v-else
                       key="1"
                   >
-                  {{ trip.name }}
+                  {{ flyLinePlace }}
                 </span>
                 </v-fade-transition>
               </v-col>
@@ -93,9 +94,23 @@
         </v-expansion-panel-header>
         <v-expansion-panel-content color="success">
           <v-text-field
-              v-model="trip.name"
-              placeholder="Caribbean Cruise"
+              v-model="trip.flyLinePlace.start"
+              placeholder="起始"
           ></v-text-field>
+          <v-text-field
+              v-model="trip.flyLinePlace.end"
+              placeholder="终止"
+          ></v-text-field>
+          <div class="wayFindIng-bnt">
+            <v-btn
+                class="ma-2"
+                outlined
+                color="#0ff0ff"
+                @click.stop="buildFlyLine"
+            >
+              构建飞线
+            </v-btn>
+          </div>
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -103,6 +118,8 @@
 </template>
 
 <script>
+import cityJson from '../../../assets/json/city.json';
+
 export default {
   name: "OperatorPanel",
   data() {
@@ -110,27 +127,81 @@ export default {
       trip: {
         startCity: '',
         endCity: '',
-        name: '',
+        flyLinePlace: {
+          start: '',
+          end: ''
+        }
       },
+      plane: []
     }
   },
   methods: {
-    panelChange(e) {
-      console.log(e,'切换折叠状态...')
-    },
-    startFindingWay() {
-      console.log('开始寻路...')
+    startFindingWay(params) {
+      let {start, end} = params
+      console.log('开始寻路...', start, end, this.checkCity(start), this.checkCity(end))
+      if (start.trim() === '' || end.trim() === '') { // 不能为空
+        console.log('请输入起始地城市...')
+        return false
+      } else if (!this.checkCity(start) || !this.checkCity(end)) { // 城市名要存在
+        console.log('请输入正确的地级市城市名...')
+        return false
+      } else if (this.checkCity(start) && this.checkCity(end) && start === end) { // 禁止相同城市寻路
+        console.log('近在眼前你寻什么路？')
+        return false
+      } else {
+        this.plane = []
+        this.$emit('start-finding-way', {start: this.filterCityPos(start), end: this.filterCityPos(end)})
+      }
     },
     cancelFindingWay() {
+      this.trip.startCity = ''
+      this.trip.endCity = ''
+      this.plane = []
       console.log('取消寻路...')
+    },
+    buildFlyLine() {
+      this.plane = []
+      console.log('构建飞线...')
+    },
+    // 是否存在该地级市
+    checkCity(city) {
+      let isCity = false;
+      if (city.trim() === '') {
+        isCity = false
+      } else {
+        cityJson.map(v => {
+          if (v.city.includes(city)) {
+            isCity = true;
+            return false
+          }
+        })
+      }
+      return isCity;
+    },
+    filterCityPos(city) {
+      let result;
+      cityJson.map(v => {
+        if (v.city.includes(city)) {
+          result = v.lnglat
+          return false
+        }
+      })
+      return result;
     }
+  },
+  mounted() {
   },
   computed: {
     startAEndCity() {
       let result = '';
-      console.log(this.trip.startCity)
       if (this.trip.startCity?.trim() && this.trip.endCity?.trim())
         result = this.trip.startCity + ' --- ' + this.trip.endCity;
+      return result;
+    },
+    flyLinePlace() {
+      let result = '';
+      if (this.trip.flyLinePlace?.start.trim() && this.trip.flyLinePlace?.end.trim())
+        result = this.trip.flyLinePlace.start + ' --- ' + this.trip.flyLinePlace.end;
       return result;
     }
   }
