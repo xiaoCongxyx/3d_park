@@ -36,11 +36,14 @@ let shaderI = 0
 import lineVert from "@/assets/shader/flowingGlowLine/vertex.glsl"
 import lineFrag from "@/assets/shader/flowingGlowLine/fragment.glsl"
 
+import {Loop} from './modelUtils/Loop';
+import {loadBirds} from './modelUtils/birds';
 
 const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0, 0])
 
 let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock,
-    objLoopMoveAnimate, labelRenderer;
+    objLoopMoveAnimate, labelRenderer, loop;
+let oldTime = 0;
 
 import OperatorPanel from './components/OperatorPanel'
 
@@ -174,6 +177,10 @@ export default {
     },
     render() {
       let elapsedTime = clock.getElapsedTime();
+      // 每一帧的时间
+      let deltaTime = elapsedTime - oldTime;
+      oldTime = elapsedTime;
+      // let delta = clock.getDelta()
 
       // 物体循环自动移动
       if (objLoopMoveAnimate) {
@@ -195,12 +202,23 @@ export default {
 
       this.TWEEN.update()
 
+      if (loop) {
+        loop.start(deltaTime)
+      }
+
       // 2. 用 bloomComposer 产生辉光
       // bloomComposer.render();
       // 3. 将转成黑色材质的物体还原成初始材质
       // scene.traverse(restoreMaterial);
       // 4. 用 finalComposer 作最后渲染
       // finalComposer.render();
+    },
+    async setLoop() {
+      loop = new Loop()
+      const {parrot} = await loadBirds();
+
+      loop.updatables.push(parrot);
+      scene.add(parrot);
     },
     loadChinaMap() {
       this.THREE.Cache.enabled = true;
@@ -227,77 +245,9 @@ export default {
             ] // 南昌 --- 西安
             this.drawHeightLine(linePoint, 10) // height没传就是绘制直线 离地高度为0
 
-            // this.setMapDom(jsonData)
-            // this.setMapBorder(jsonData)
 
           }
       )
-    },
-    // 绘制地图
-    setMapDom(e) {
-      const color = '#008c8c';
-      const province = new this.THREE.Object3D();
-
-      e.features.forEach((item, index) => {
-        let cod = item.geometry.coordinates[0];
-
-        cod = cod.length > 1 ? [[...cod]] : cod;
-        cod.forEach((polygon) => {
-          const shape = new this.THREE.Shape();
-          const lineGeometry = new this.THREE.BufferGeometry();
-          const pointsArray = [];
-          for (let i = 0; i < polygon.length; i++) {
-            // projection -- 坐标转化
-            let [x, y] = projection(polygon[i]);
-            pointsArray.push(new this.THREE.Vector3(x, -y, 3));
-            if (i === 0) {
-              shape.moveTo(x, -y);
-            }
-            shape.lineTo(x, -y);
-          }
-          // 添加多个线
-          lineGeometry.setFromPoints(pointsArray);
-          const lineMaterial = new this.THREE.LineBasicMaterial({
-            color: '#b45309',
-          });
-          // 创建线
-          let lines = new this.THREE.Line(lineGeometry, lineMaterial);
-          lines.rotation.x = -0.5 * Math.PI;
-          lines.position.set(0, 2.5, 0);
-          // 地图厚度
-          lines.scale.set(1, 1, 0.3);
-          // lines.layers.enable(1);
-          scene.add(lines);
-
-          const extrudeSettings = {
-            depth: 4,
-            bevelEnabled: false,
-            bevelSegments: 1,
-            bevelThickness: 0.2,
-          };
-          const geometry = new this.THREE.ExtrudeGeometry(shape, extrudeSettings);
-          const material = new this.THREE.MeshBasicMaterial({
-            color: `#1E293B`,
-            transparent: true,
-            opacity: 1,
-          });
-          const material1 = new this.THREE.MeshBasicMaterial({
-            color: '#6b7280',
-            opacity: 1,
-          });
-          const mesh = new this.THREE.Mesh(geometry, [material, material1]);
-          mesh.position.set(0, 2, 0);
-          // 地图厚度
-          mesh.scale.set(1, 1, 0.3);
-          // 给mesh开启阴影
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          mesh._color = color;
-          mesh.rotation.x = -0.5 * Math.PI;
-          province.add(mesh);
-        });
-      });
-      scene.add(province);
     },
     // 会之描边
     setMapBorder(e) {
@@ -335,140 +285,6 @@ export default {
         });
       });
       scene.add(province);
-    },
-    // 几何体集合
-    setTerritory() {
-      // //-------------------- 圆柱1
-
-      const geometry1a = new this.THREE.CylinderGeometry(29, 29, 1, 100, 1);
-      // transparent 设置 true 开启透明
-      const material1 = new this.THREE.MeshStandardMaterial({
-        color: '#0F172A',
-        transparent: false,
-      });
-      // 374151 1E293B
-      // 使用分层渲染，不管用什么材质对象，都必须克隆 geometry1a.clone()
-      const circleY1 = new this.THREE.Mesh(geometry1a.clone(), material1);
-      // 绘制地图时 y轴取反 这里同步
-      circleY1.position.set(0, 1, 0);
-      circleY1.material.opacity = 1;
-      circleY1.scale.set(1, 1, 1);
-      circleY1.rotation.y = -0.5 * Math.PI;
-
-      // //--------------- 圆环1
-
-      const geometry4a = new this.THREE.RingGeometry(31, 31.5, 200);
-      // transparent 设置 true 开启透明
-      const material4 = new this.THREE.MeshStandardMaterial({
-        side: this.THREE.DoubleSide,
-        color: '#f40',
-        transparent: true,
-        opacity: 0.8,
-      });
-      const circleY4 = new this.THREE.Mesh(geometry4a.clone(), material4.clone());
-      // 绘制地图时 y轴取反 这里同步
-      circleY4.position.set(0, 0, -0.5);
-      circleY4.scale.set(1, 1, 1);
-      circleY4.scale.multiplyScalar(1.2);
-      circleY4.rotation.x = -0.5 * Math.PI;
-      circleY4.layers.enable(1);
-      //半圆环
-      const geometry5a = new this.THREE.RingGeometry(31.5, 32.7, 200, 0.6, 1, 3);
-      // transparent 设置 true 开启透明
-      const material5 = new this.THREE.MeshStandardMaterial({
-        side: this.THREE.DoubleSide,
-        color: '#f40',
-        transparent: true,
-        opacity: 0.8,
-      });
-      const circleY5 = new this.THREE.Mesh(geometry5a.clone(), material5.clone());
-      // 绘制地图时 y轴取反 这里同步
-      circleY5.position.set(0, 0, -0.5);
-      circleY5.scale.set(1, 1, 1);
-      circleY5.rotation.x = -0.5 * Math.PI;
-      circleY5.layers.enable(1);
-      //整圆
-      const geometry5b = new this.THREE.RingGeometry(0, 28.5, 200);
-      // transparent 设置 true 开启透明
-      const material5a = new this.THREE.MeshStandardMaterial({
-        side: this.THREE.DoubleSide,
-        color: '#6b7280',
-        transparent: true,
-      });
-      const circleY5a = new this.THREE.Mesh(geometry5b.clone(), material5a.clone());
-      // 绘制地图时 y轴取反 这里同步
-      circleY5a.position.set(0, 1.6, 0);
-      circleY5a.scale.set(1, 1, 1);
-      circleY5a.rotation.x = -0.5 * Math.PI;
-      //圆环4
-      const geometry5r = new this.THREE.RingGeometry(28, 29, 200);
-      // transparent 设置 true 开启透明
-      const material5r = new this.THREE.MeshStandardMaterial({
-        side: this.THREE.DoubleSide,
-        color: '#1E293B',
-        transparent: true,
-      });
-      const circleY5r = new this.THREE.Mesh(geometry5r.clone(), material5r.clone());
-      // 绘制地图时 y轴取反 这里同步
-      circleY5r.position.set(0, 1.65, 0);
-      circleY5r.scale.set(1, 1, 1);
-      circleY5r.rotation.x = -0.5 * Math.PI;
-      scene.add(circleY5r);
-      scene.add(circleY5a);
-      scene.add(circleY1);
-      scene.add(this.ArcCurveGeometry());
-      scene.add(circleY5);
-      scene.add(circleY4);
-      scene.add(this.rectShape());
-    },
-    // 多面圆环
-    rectShape() {
-      var geometry = new this.THREE.TorusGeometry(27, 0.3, 16, 100, 5);
-      var material = new this.THREE.MeshBasicMaterial({color: '#64748B'});
-      var torus = new this.THREE.Mesh(geometry, material);
-      torus.position.set(0, 1.65, 0);
-      torus.scale.set(1, 1, 1);
-      torus.rotation.x = -0.5 * Math.PI;
-      return torus;
-    },
-    // 椭圆
-    ArcCurveGeometry() {
-      var positions = [];
-      var colors = [];
-      // 椭圆
-      const lineGeometry = new this.THREE.BufferGeometry();
-      var curve = new this.THREE.EllipseCurve(
-          0,
-          0, // ax, aY
-          30,
-          30, // xRadius, yRadius
-          0,
-          2 * Math.PI, // aStartAngle, aEndAngle
-          false, // aClockwise
-          0, // aRotation
-      );
-      var points = curve.getPoints(100);
-      lineGeometry.setAttribute(
-          'position',
-          new this.THREE.BufferAttribute(new Float32Array(positions), 3, true),
-      );
-      lineGeometry.setAttribute(
-          'color',
-          new this.THREE.BufferAttribute(new Float32Array(colors), 3, true),
-      );
-
-      lineGeometry.setFromPoints(points);
-      var material = new this.THREE.LineDashedMaterial({
-        color: '#64748B',
-        scale: 1.1,
-        dashSize: 10,
-        gapSize: 10,
-      });
-      var ellipse = new this.THREE.Line(lineGeometry, material);
-      ellipse.computeLineDistances();
-      ellipse.rotation.x = -0.5 * Math.PI;
-      ellipse.layers.enable(1);
-      return ellipse;
     },
     // 相机tween动画
     CameraAnimation() {
@@ -748,6 +564,7 @@ export default {
     // 开始寻路
     startFindingWayHandel(theWay) {
       console.log(theWay, '开始寻路...')
+      // this.drawHeightLine(theWay,8)
     }
   }
   ,
@@ -759,9 +576,8 @@ export default {
     this.setControl()
     // 地图加载
     this.loadChinaMap()
-    // 设置物体效果
-    // this.setTerritory()
     this.render()
+    this.setLoop()
     // 相机运动动画
     // this.CameraAnimation()
     window.addEventListener('resize', () => {

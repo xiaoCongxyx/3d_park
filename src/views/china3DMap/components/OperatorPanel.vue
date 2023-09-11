@@ -1,7 +1,7 @@
 <template>
-  <div class="operator-panel">
+  <div class="operator-panel"  @click.stop="() => {}">
     <v-expansion-panels focusable dark v-model="plane">
-      <v-expansion-panel @click.stop="() => {}">
+      <v-expansion-panel>
         <v-expansion-panel-header>
           <template v-slot:default="{ open }">
             <v-row no-gutters>
@@ -63,7 +63,7 @@
       </v-expansion-panel>
 
 
-      <v-expansion-panel @click.stop="() => {}">
+      <v-expansion-panel>
         <v-expansion-panel-header>
           <template v-slot:default="{ open }">
             <v-row no-gutters>
@@ -150,7 +150,16 @@ export default {
         return false
       } else {
         this.plane = []
-        this.$emit('start-finding-way', {start: this.filterCityPos(start), end: this.filterCityPos(end)})
+        let result = []
+        result.push({
+          city: start,
+          pos: this.filterCityPos(start)
+        })
+        result.push({
+          city: end,
+          pos: this.filterCityPos(end)
+        })
+        this.$emit('start-finding-way', result)
       }
     },
     cancelFindingWay() {
