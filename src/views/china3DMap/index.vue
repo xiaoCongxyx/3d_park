@@ -2,7 +2,7 @@
   <div id="chinaMap" ref="chinaMap">
     <canvas ref="baseCanvas"></canvas>
 
-    <OperatorPanel @start-finding-way="startFindingWayHandel"/>
+    <OperatorPanel @start-finding-way="startFindingWayHandel" @cancel-finding-way="cancelFindingWay" />
   </div>
 </template>
 
@@ -19,6 +19,7 @@ import * as D3 from 'd3'
 let _ = require('lodash');
 
 import ObjLoopMoveAnimate from "../../utils/customerAnimateUtil/objLoopMoveAnimate";
+import ModelMoveAnimate from "../../utils/customerAnimateUtil/modelMoveAnimate";
 import {Create2DTextLabel} from "../../utils/threeUtils/create2DTextLabel";
 
 import dotMarkerVert from "@/assets/shader/mapDotMarker/vertex.glsl"
@@ -44,6 +45,8 @@ const projection = D3.geoMercator().center([116.412318, 39.909843]).translate([0
 let scene, camera, renderer, tweakPane, controls, bloomComposer, finalComposer, raycaster, INTERSECTED, clock,
     objLoopMoveAnimate, labelRenderer, loop;
 let oldTime = 0;
+let modelObj = null;
+let animateModel = null
 
 import OperatorPanel from './components/OperatorPanel'
 
@@ -52,10 +55,12 @@ export default {
   data() {
     return {
       pointer: null,
-      lineShaderUniforms: null
+      lineShaderUniforms: null,
+      seWay: '', // 起终点
     }
   },
-  watch: {},
+  watch: {
+  },
   computed: {},
   components: {
     OperatorPanel
@@ -215,10 +220,8 @@ export default {
     },
     async setLoop() {
       loop = new Loop()
-      const {parrot} = await loadBirds();
-
-      loop.updatables.push(parrot);
-      scene.add(parrot);
+      modelObj = (await loadBirds()).parrot;
+      loop.updatables.push(modelObj);
     },
     loadChinaMap() {
       this.THREE.Cache.enabled = true;
@@ -562,9 +565,60 @@ export default {
     },
 
     // 开始寻路
-    startFindingWayHandel(theWay) {
+    async startFindingWayHandel(theWay) {
+      let currentWay = theWay[0].city + theWay[1].city
+      if (currentWay !== this.seWay) this.cancelFindingWay();
+      this.seWay = theWay[0].city + theWay[1].city
       console.log(theWay, '开始寻路...')
-      // this.drawHeightLine(theWay,8)
+      let final3DPos = []
+      theWay.map(v => {
+        final3DPos.push({
+          x: projection(v.pos)[0],
+          y: 4.001,
+          z:  projection(v.pos)[1]
+        })
+      })
+      console.log(final3DPos)
+
+      if (!animateModel) {
+
+        scene.add(modelObj);
+
+        let opt = {
+          scene,
+          camera,
+          controls,
+          moveModel: modelObj,
+          useTime: 0.1,
+          pointsNum: 50,
+          cameraFor: 8,
+          cameraFOV: 11,
+          cameraLookAtFOV: 8,
+          isLoop: true,
+          isThirdPerson: false,
+          curve: final3DPos,
+          finalCameraPos: {
+            x: 8,
+            y: 8,
+            z: 0
+          }
+        }
+        animateModel = new ModelMoveAnimate(opt)
+        loop.updatables.push(animateModel);
+      }
+    },
+    // 取消寻路
+    cancelFindingWay() {
+      if (animateModel) {
+        scene.remove(modelObj)
+        animateModel.destroyCurve()
+        animateModel = null;
+        loop.updatables.map((v,i) => { // 删除tick中的示例
+          if (v.id && v.id === 'moveModelAnimate') {
+            loop.updatables.splice(i,1)
+          }
+        })
+      }
     }
   }
   ,

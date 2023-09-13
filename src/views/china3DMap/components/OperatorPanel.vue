@@ -167,6 +167,7 @@ export default {
       this.trip.endCity = ''
       this.plane = []
       console.log('取消寻路...')
+      this.$emit('cancel-finding-way')
     },
     buildFlyLine() {
       this.plane = []
