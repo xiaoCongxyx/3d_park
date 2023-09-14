@@ -592,10 +592,10 @@ export default {
           useTime: 0.1,
           pointsNum: 50,
           cameraFor: 8,
-          cameraFOV: 11,
+          cameraFOV: 8,
           cameraLookAtFOV: 8,
           isLoop: true,
-          isThirdPerson: false,
+          isThirdPerson: true,
           curve: final3DPos,
           finalCameraPos: {
             x: 8,

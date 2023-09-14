@@ -103,13 +103,14 @@ export default class ModelMoveAnimate {
 
     play(t) {
         // console.log('终点',this.moveModel.position.distanceTo(this.endPoint))
-        if (this.moveModel.position.distanceTo(this.endPoint) < 2) { // 当模型运动到终点  动画停止 相机停在模型身上  相机视角在模型lookAt方向
+        if (this.moveModel.position.distanceTo(this.endPoint) < 0.5) { // 当模型运动到终点  动画停止 相机停在模型身上  相机视角在模型lookAt方向
 
             // this.animateFlag = true;
             if (!this.isLoop && this.isThirdPerson) this.animateFlag = true;
             // console.log('终点',this.moveModel.position.distanceTo(this.endPoint))
 
-            if (this.isLoop) {
+            if (this.isLoop && !this.isThirdPerson) { // 循环上帝视角
+                console.log('isLoop')
                 new TWEEN.Tween(this.moveModel.position)
                     .to({x: this.points[0].x, y: this.points[0].y, z: this.points[0].z}, 0.00001)
                     .easing(TWEEN.Easing.Linear.None)
@@ -117,10 +118,42 @@ export default class ModelMoveAnimate {
                         // 动画完成后的回调函数
                     })
                     .start();
-                // this.moveModel.position.set(this.points[0].x, this.points[0].y, this.points[0].z)
-            } else { // 到达终点停下
-                this.moveModel.position.copy(this.endPoint);
+            } else if (this.isLoop && this.isThirdPerson) { // 循环第三人称视角
+                console.log('isThirdPersonisLoop')
+                let pos = this.curve.getPointAt(t);
+                let nPos = new THREE.Vector3(pos.x, pos.y, pos.z);
+                this.moveModel.position.copy(nPos);
+                // 返回点t在曲线上位置切线向量
+                const tangent = this.curve.getTangentAt(t);
+                // 位置向量和切线向量相加即为所需朝向的点向量
+                const lookAtVec = tangent.add(new THREE.Vector3(pos.x, pos.y, pos.z));
+                this.moveModel.lookAt(lookAtVec);
+                // new TWEEN.Tween(this.moveModel.position)
+                //     .to({x: this.points[0].x, y: this.points[0].y, z: this.points[0].z}, 0.00001)
+                //     .easing(TWEEN.Easing.Linear.None)
+                //     .onComplete(() => {
+                //         // 动画完成后的回调函数
+                //     })
+                //     .start();
+                // new TWEEN.Tween(this.camera.position)
+                //     .to({x: pos.x, y: pos.y, z: pos.z}, 0.00001)
+                //     .easing(TWEEN.Easing.Linear.None)
+                //     .onComplete(() => {
+                //         // 动画完成后的回调函数
+                //     })
+                //     .start();
+            } else if (!this.isLoop && this.isThirdPerson) { // 第三人称视角不循环
+                console.log('isThirdPerson')
+                let pos = this.curve.getPointAt(t);
 
+                // let pos = this.curve.getPointAt(t);
+                this.orbitControl.enabled = true;
+                // 最终相机视角需要停在的位置
+                pos.x += this.finalCameraPos.x;
+                pos.y += this.finalCameraPos.y;
+                pos.z += this.finalCameraPos.z;
+                this.camera.position.copy(pos);
+                this.moveModel.position.copy(this.endPoint);
                 // 没有传转身相关参数则不执行转身函数 (因为执行默认参数会有问题...)
                 if (this.option.modelTurnAround) {
                     gsap.to(
@@ -181,28 +214,6 @@ export default class ModelMoveAnimate {
                     )
                 }
             }
-
-
-            if (this.isThirdPerson) { // 第三人称切换
-                let pos = this.curve.getPointAt(t - 0.05);
-                // let pos = this.curve.getPointAt(t);
-                this.orbitControl.enabled = true;
-                // 最终相机视角需要停在的位置
-                pos.x += this.finalCameraPos.x;
-                pos.y += this.finalCameraPos.y;
-                pos.z += this.finalCameraPos.z;
-                if (this.isLoop) {
-                    new TWEEN.Tween(this.camera.position)
-                        .to({x: pos.x, y: pos.y, z: pos.z}, 0.00001)
-                        .easing(TWEEN.Easing.Linear.None)
-                        .onComplete(() => {
-                            // 动画完成后的回调函数
-                        })
-                        .start();
-                } else {
-                    this.camera.position.copy(pos);
-                }
-            }
         } else { // 模型运动过程的位置变化
             // console.log(t, '变化')
             const position = this.curve.getPointAt(t);
@@ -214,18 +225,20 @@ export default class ModelMoveAnimate {
             const tangent = this.curve.getTangentAt(t);
             // 位置向量和切线向量相加即为所需朝向的点向量
             const lookAtVec = tangent.add(new THREE.Vector3(position.x, position.y, position.z));
+            // console.log(tangent, lookAtVec)
             this.moveModel.lookAt(lookAtVec);
 
             // 遍历曲线上所有的点 实时检测模型移动的方向
             if (this.isThirdPerson) {
                 for (let i = 0; i < this.curveLineWayPoint.length; i++) {
                     if (this.curveLineWayPoint[i + 1]) {
+                        // console.log(this.curveLineWayPoint[i ],this.curveLineWayPoint[i + 1],'----',this.moveModel.position.x,this.moveModel.position.z,'计算行进方向...');
                         if (
                             this.showNum(this.moveModel.position.x, this.curveLineWayPoint[i].x) &&
                             this.showNum(this.moveModel.position.x, this.curveLineWayPoint[i + 1].x) &&
                             this.curveLineWayPoint[i].x === this.curveLineWayPoint[i + 1].x
                         ) { // 在z轴移动
-                            // console.log('z上在动');
+                            console.log('z上在动');
                             let pos = this.curve.getPointAt(t);
                             pos.y += this.cameraFOV
                             if (this.curveLineWayPoint[i].z > this.curveLineWayPoint[i + 1].z) {
@@ -251,7 +264,24 @@ export default class ModelMoveAnimate {
                             this.camera.position.copy(pos);
                             this.camera.lookAt(position.x, position.y + this.cameraLookAtFOV, position.z)
                             this.orbitControl.target.set(position.x, position.y + this.cameraLookAtFOV, position.z)
-                            // console.log('x上在动');
+                            console.log('x上在动');
+                        } else {
+                            // console.log(lookAtVec, '不是xz上的直线运动')
+                            let newLookAtVec = new THREE.Vector3().copy(lookAtVec)
+                            newLookAtVec.y+=7
+                            let pos = this.curve.getPointAt(t);
+                            pos.y += this.cameraFOV
+                            // if (this.curveLineWayPoint[i].x > this.curveLineWayPoint[i + 1].x) {
+                            //     pos.x += this.cameraFor;
+                            // } else {
+                            //     pos.x -= this.cameraFor;
+                            // }
+                            this.camera.position.copy(pos);
+                            // this.camera.lookAt(position.x, position.y, position.z)
+
+                            this.camera.lookAt(newLookAtVec);
+                            this.orbitControl.target.set(lookAtVec.x, lookAtVec.y + 7, lookAtVec.z)
+                            // this.orbitControl.target.lookAt(lookAtVec);
                         }
                     }
                 }
@@ -301,6 +331,7 @@ export default class ModelMoveAnimate {
                 })
             }
             this.scene.remove(this.curveObj);
+            this.orbitControl.enabled = true;
         }
     }
 
